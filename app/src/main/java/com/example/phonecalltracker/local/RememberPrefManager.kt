@@ -2,9 +2,16 @@ package com.example.phonecalltracker.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.phonecalltracker.recevier.CallType
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class RememberPrefManager(context: Context) {
-    private val sharedPreferences: SharedPreferences = context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
+    private val sharedPreferences: SharedPreferences =
+        context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
 
     fun saveBoolean(key: String, value: Boolean) {
         sharedPreferences.edit().putBoolean(key, value).apply()
@@ -14,46 +21,52 @@ class RememberPrefManager(context: Context) {
         return sharedPreferences.getBoolean(key, defaultValue)
     }
 
+    // Data class to represent a phone call entry
+    data class PhoneCallEntry(val phoneNumber: String, val callType: CallType, val timestamp: String)
 
     // Save a phone number with a timestamp
-    fun savePhoneNumber(phoneNumber: String) {
-        val currentTime = System.currentTimeMillis()
-        val phoneMap = getPhoneNumberMap().toMutableMap() // Retrieve existing numbers and timestamps
-        phoneMap[phoneNumber] = currentTime // Add or update the number with the current timestamp
-        savePhoneNumberMap(phoneMap) // Save the updated map
-    }
+    fun savePhoneNumber(phoneNumber: String, callType: CallType) {
+        val gson = Gson()
 
-    // Retrieve the map of phone numbers and their timestamps
-    fun getPhoneNumberMap(): Map<String, Long> {
-        val phoneNumbers = sharedPreferences.getStringSet("phone_numbers", emptySet()) ?: emptySet()
-        val timestamps = sharedPreferences.getStringSet("phone_timestamps", emptySet()) ?: emptySet()
-
-        return phoneNumbers.associateWith { number ->
-            timestamps.find { it.startsWith(number) }?.substringAfter(":")?.toLong() ?: 0L
+        // Retrieve existing entries
+        val existingEntriesJson = sharedPreferences.getString("call_list", null)
+        val type = object : TypeToken<MutableList<PhoneCallEntry>>() {}.type
+        val callList: MutableList<PhoneCallEntry> = if (existingEntriesJson != null) {
+            gson.fromJson(existingEntriesJson, type)
+        } else {
+            mutableListOf()
         }
-    }
 
-    // Save the map of phone numbers and their timestamps
-    private fun savePhoneNumberMap(phoneMap: Map<String, Long>) {
-        val phoneNumbersSet = phoneMap.keys.toSet()
-        val timestampsSet = phoneMap.map { "${it.key}:${it.value}" }.toSet()
+        // Add new entry
+        val currentTime = System.currentTimeMillis()
+        val newEntry = PhoneCallEntry(phoneNumber, callType, formatTimestamp(currentTime))
+        callList.add(newEntry)
 
-        sharedPreferences.edit()
-            .putStringSet("phone_numbers", phoneNumbersSet)
-            .putStringSet("phone_timestamps", timestampsSet)
-            .apply()
-    }
+        // Save updated list back to SharedPreferences
+        val updatedEntriesJson = gson.toJson(callList)
+        sharedPreferences.edit().putString("call_list", updatedEntriesJson).apply()
 
-    // Remove a specific phone number
-    fun removePhoneNumber(phoneNumber: String) {
-        val phoneMap = getPhoneNumberMap().toMutableMap()
-        phoneMap.remove(phoneNumber) // Remove the specified number
-        savePhoneNumberMap(phoneMap) // Save the updated map
     }
 
     // Retrieve all saved phone numbers as a list of pairs (phone number, timestamp)
-    fun getAllSavedPhoneNumbers(): List<Pair<String, Long>> {
-        return getPhoneNumberMap().map { Pair(it.key, it.value) }
+    fun getAllSavedPhoneNumbers(): List<PhoneCallEntry> {
+        val gson = Gson()
+
+        // Retrieve existing entries
+        val existingEntriesJson = sharedPreferences.getString("call_list", null)
+        val type = object : TypeToken<List<PhoneCallEntry>>() {}.type
+
+        return if (existingEntriesJson != null) {
+            gson.fromJson(existingEntriesJson, type) ?: emptyList()
+        } else {
+            emptyList()
+        }
+    }
+
+    // Format timestamp to a human-readable date string
+    fun formatTimestamp(timestamp: Long): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return dateFormat.format(Date(timestamp))
     }
 
 }

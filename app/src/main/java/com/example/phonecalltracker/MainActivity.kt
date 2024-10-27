@@ -36,8 +36,9 @@ class MainActivity : ComponentActivity() {
                     val rememberPref = RememberPrefManager(this@MainActivity)
 
                     LazyColumn {
-                        items(rememberPref.getAllSavedPhoneNumbers()) { (number, timestamp) ->
-                            Text("\"Updated Phone Number: $number, Timestamp: $timestamp")
+                        items(rememberPref.getAllSavedPhoneNumbers()) {it
+
+                            Text("\"Updated Phone Number: ${it.phoneNumber}, Timestamp: ${it.timestamp}")
                         }
                     }
                 }

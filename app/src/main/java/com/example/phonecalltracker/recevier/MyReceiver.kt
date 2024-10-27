@@ -3,7 +3,6 @@ package com.example.phonecalltracker.recevier
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.telephony.TelephonyManager
 import android.widget.Toast
 import com.example.phonecalltracker.accessbility.WhatsAppAccessibilityService
@@ -11,9 +10,24 @@ import com.example.phonecalltracker.local.RememberPrefManager
 
 const val incoming_number = "incoming_number"
 
+enum class CallType(val description: String) {
+    INCOMING_CALL("Incoming Call"),
+    OUTGOING_CALL("Outgoing Call"),
+    MISSED_CALL("Missed Call");
+    override fun toString(): String {
+        return description
+    }
+}
+
+data class CallRecord(val number: String, val type: CallType)
+
 class MyReceiver : BroadcastReceiver() {
 
     lateinit var rememberPrefManager: RememberPrefManager
+
+    // List to store call records
+    private val callRecords = mutableListOf<CallRecord>()
+
 
     override fun onReceive(context: Context, intent: Intent) {
         rememberPrefManager = RememberPrefManager(context)
@@ -23,29 +37,38 @@ class MyReceiver : BroadcastReceiver() {
 
             when (state) {
                 TelephonyManager.EXTRA_STATE_IDLE -> {
+                    incomingNumber?.let {
+                        savePhoneNumber(it, CallType.MISSED_CALL)
+                    }
                     Toast.makeText(context, "Call ended or idle state.", Toast.LENGTH_LONG).show()
                 }
 
                 TelephonyManager.EXTRA_STATE_RINGING -> {
-                    // Notify about the incoming call
-                    Toast.makeText(
-                        context,
-                        "Incoming call from: $incomingNumber",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    // Send the number to a specific WhatsApp contact
-                    if (!incomingNumber.isNullOrEmpty()) {
-                        rememberPrefManager.savePhoneNumber(incomingNumber)
-                        sendToWhatsApp(context, incomingNumber)
+                    incomingNumber?.let {
+                        savePhoneNumber(it, CallType.INCOMING_CALL)
+                        Toast.makeText(context, "Incoming call from: $it", Toast.LENGTH_LONG).show()
+                        sendToWhatsApp(context, it)
                     }
                 }
 
                 TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                    Toast.makeText(context, "Call is active.", Toast.LENGTH_LONG).show()
+                    // Outgoing call detected
+                    incomingNumber?.let {
+                        savePhoneNumber(it, CallType.OUTGOING_CALL)
+                        Toast.makeText(context, "Outgoing call to: $it", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
+    }
+
+    private fun savePhoneNumber(number: String, callType: CallType) {
+        // Save the phone number with its call type if it's not already in the list
+        if (!callRecords.any { it.number == number && it.type == callType }) {
+            callRecords.add(CallRecord(number, callType))
+        }
+        rememberPrefManager.savePhoneNumber(number,callType)
+
     }
 
     private fun sendToWhatsApp(context: Context, number: String) {
