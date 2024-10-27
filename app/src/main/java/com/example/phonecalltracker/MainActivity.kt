@@ -9,10 +9,13 @@ import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.phonecalltracker.local.RememberPrefManager
 import com.example.phonecalltracker.recevier.MyReceiver
 import com.example.phonecalltracker.ui.theme.PhoneCallTrackerTheme
 
@@ -24,13 +27,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhoneCallTrackerTheme {
                 checkPermissions(this)
-                // Registering the receiver with correct intent filter
                 val receiver = MyReceiver()
                 val intentFilter = IntentFilter("android.intent.action.PHONE_STATE")
                 registerReceiver(receiver, intentFilter)
 
                 Column(modifier = Modifier.fillMaxSize()) {
                     Text("Listening for phone calls...")
+                    val rememberPref = RememberPrefManager(this@MainActivity)
+
+                    LazyColumn {
+                        items(rememberPref.getAllSavedPhoneNumbers()) { (number, timestamp) ->
+                            Text("\"Updated Phone Number: $number, Timestamp: $timestamp")
+                        }
+                    }
                 }
             }
         }
@@ -38,7 +47,18 @@ class MainActivity : ComponentActivity() {
 }
 
 private fun checkPermissions(context: ComponentActivity) {
-    /*if (ContextCompat.checkSelfPermission(
+    if (ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CALL_LOG
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        ActivityCompat.requestPermissions(
+            context,
+            arrayOf(android.Manifest.permission.READ_CALL_LOG),
+            200
+        )
+    }
+    if (ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.READ_PHONE_STATE
         ) != PackageManager.PERMISSION_GRANTED
@@ -46,17 +66,7 @@ private fun checkPermissions(context: ComponentActivity) {
         ActivityCompat.requestPermissions(
             context,
             arrayOf(android.Manifest.permission.READ_PHONE_STATE),
-            200
+            201
         )
-    }*/
-
-    /*READ_CALL_LOG
-    READ_PHONE_STATE
-    */
-    if (ContextCompat.checkSelfPermission(context,android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
-        ActivityCompat.requestPermissions(context, arrayOf(android.Manifest.permission.READ_CALL_LOG),200)
-    }
-    if (ContextCompat.checkSelfPermission(context,android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-        ActivityCompat.requestPermissions(context, arrayOf(android.Manifest.permission.READ_PHONE_STATE), 201)
     }
 }
