@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                     LazyColumn {
                         items(rememberPref.getAllSavedPhoneNumbers()) {it
 
-                            Text("\"Updated Phone Number: ${it.phoneNumber}, Timestamp: ${it.timestamp}")
+                            Text("\"Updated Phone Number: ${it.phoneNumber}, Timestamp: ${it.timestamp}, Call Type : ${it.callType}")
                         }
                     }
                 }
